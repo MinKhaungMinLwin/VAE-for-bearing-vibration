@@ -83,7 +83,7 @@ Tested with Python 3.15, torch 2.15, numpy 2.5, scipy 1.18, pandas 3.1, scikit-l
 - Generated spectra match the mean healthy spectrum closely but are **over-smoothed**: their spread is only about two-thirds of the real spread.
 - Reconstruction error separates every damaged bearing from unseen healthy K005/K006 (**AUROC 0.92–1.00**).
 - **Prediction (written before training):** KA15 and KI14 would be the hardest damaged bearings to detect. They came out second and third hardest, but the prediction missed the hardest, KI04 (AUROC 0.916). A loudness measure chosen *after* seeing the results explains all three. That makes it a hypothesis to test on new bearings, not a confirmation.
-- **Failure mode:** healthy K005 scores about 50% higher than the training bearings and overlaps the quietest damaged bearings, which would cause false alarms.
+- **Failure mode:** healthy K005 scores about 50% higher than the training bearings An alarm threshold at the 99th percentile of healthy validation windows flags **67.5% of K005's windows** as damaged (84.8% at the 95th percentile), against 7.2% for K006.
 
 See the interpretation cells and the summary at the end of the notebook for details.
 
