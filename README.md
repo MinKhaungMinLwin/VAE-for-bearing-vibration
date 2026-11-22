@@ -72,7 +72,7 @@ The trade-off is that any fault information above 10 kHz is thrown away. Even in
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install numpy scipy pandas matplotlib seaborn scikit-learn torch jupyter
+pip install -r requirements.txt
 jupyter lab generative_model.ipynb      # or open it in VS Code
 ```
 
