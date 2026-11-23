@@ -19,7 +19,7 @@ All code, figures and outputs are in `generative_model.ipynb`.
 
 ## Dataset or Prompt Description
 
-**Source.** The original dataset was recorded by Lessmeier et al. (2016) at the Chair of Design and Drive Technology (KAt), Paderborn University. I used the copy on Zenodo, uploaded by Jurgen van den Hoogen (Osnabrück University) in July 2025 under a CC BY 4.0 licence (van den Hoogen, 2025). The Zenodo record has one `.rar` archive per bearing, 31 archives and about 5.2 GB in total. I only downloaded the 12 bearings I need, which is about 2 GB.
+**Source.** The original dataset was recorded by Lessmeier et al. (2016) at the Chair of Design and Drive Technology (KAt), Paderborn University. I used the copy on Zenodo, uploaded by Jurgen van den Hoogen (Osnabrück University) in July 2025 under a CC BY 4.0 licence (van den Hoogen, 2025). This licence belongs to the Zenodo copy; the original Paderborn page states no licence. The Zenodo record has one `.rar` archive per bearing, 31 archives and about 5.2 GB in total. I only downloaded the 12 bearings I need, which is about 2 GB.
 
 **Recordings.** Each bearing has 20 recordings of 4 seconds at the operating condition N15_M07_F10. This means 1500 rpm, 0.7 Nm load torque and 1000 N radial force. I only use this one condition. Each `.mat` file has several channels (motor currents, speed, torque, force, temperature and vibration). I only use the `vibration_1` channel, which is sampled at 64 kHz. In total this is 240 recordings.
 
@@ -66,7 +66,7 @@ I used 1D convolutions because neighbouring frequency bins are related, and the 
 **Generated samples (Figure 3).** I generated 500 spectra by sampling the latent from the prior and decoding.
 
 - *Strength:* the average generated spectrum matches the average real spectrum almost exactly, including the resonance peaks.
-- *Failure, over-smoothing:* the generated spectra are too smooth. The average per-bin standard deviation is 0.279 for generated spectra and 0.421 for real ones. Single real windows jump up and down from bin to bin, but generated ones are smooth curves. This is a known VAE behaviour: with a Gaussian decoder and squared error, the decoder learns the average spectrum for each latent point, and I plot the decoder mean without the noise.
+- *Failure, over-smoothing:* the generated spectra are too smooth. The average per-bin standard deviation is 0.279 for generated spectra and 0.421 for real ones. Single real windows jump up and down from bin to bin, but generated ones are smooth curves. My explanation is this: the loss is a squared error, so for each latent point the decoder learns to output the average of the spectra that map there. Also, when I generate samples I only plot the decoder output and do not add any noise back, so the bin-to-bin detail is averaged away.
 - *Memorisation check:* I compared each generated sample with 998 training windows and 998 held-out validation windows from the same bearings. If the model had memorised its training data, samples would be closer to the training windows. They are not. The median nearest distance is 6.82 to training and 6.74 to validation, and only 35.0% of samples are closer to training. So I found no sign of memorisation.
 
 Evaluating generative models is not simple, and different metrics can tell different stories (Theis et al., 2016). This is why I did not rely on one number. I compared mean and spread per frequency bin, looked at single samples, and checked memorisation separately.
@@ -102,7 +102,7 @@ After seeing the results, I found that a different loudness measure (the mean of
 
 **Honest reporting.** It is easy to change a claim after seeing the results and present it as if it was planned. I wrote my prediction before training, kept it unchanged, and I report clearly which part was right, which part was wrong, and which explanation came afterwards. I think this matters for any monitoring system, because people will trust the reported accuracy.
 
-**Data use.** The dataset has no personal data. It is published under CC BY 4.0, so I credit both the original authors and the Zenodo upload, and I do not commit the raw data to the repository.
+**Data use.** The dataset has no personal data. The CC BY 4.0 licence comes from the Zenodo re-upload (van den Hoogen, 2025); the original Paderborn page states no licence. I follow the Zenodo licence and credit both the original authors and the Zenodo upload, and I do not commit the raw data to the repository.
 
 ## Limitations and Future Improvements
 
