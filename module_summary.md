@@ -17,7 +17,7 @@ The main results are:
 
 All code, figures and outputs are in `generative_model.ipynb`.
 
-## Dataset Description
+## Dataset or Prompt Description
 
 **Source.** The original dataset was recorded by Lessmeier et al. (2016) at the Chair of Design and Drive Technology (KAt), Paderborn University. I used the copy on Zenodo, uploaded by Jurgen van den Hoogen (Osnabrück University) in July 2025 under a CC BY 4.0 licence (van den Hoogen, 2025). The Zenodo record has one `.rar` archive per bearing, 31 archives and about 5.2 GB in total. I only downloaded the 12 bearings I need, which is about 2 GB.
 
@@ -43,7 +43,7 @@ Because of point 2, I decided to **keep only 0–10 kHz**. If I kept the high ba
 
 **Pre-processing.** I cut each recording into 64 ms windows (4096 samples), without overlap. For each window I apply a Hann window, take the FFT power, keep 0–10 kHz, and average 5 bins together. This gives 128 frequency bins of 78 Hz each, on a log10 scale. In total there are 14,903 spectra: 3,970 for training, 998 for validation and 9,935 for testing. Then I standardise each frequency bin with the mean and standard deviation of the training set only.
 
-## Model Design
+## Model Design and Training Approach
 
 **Why a VAE.** A VAE (Kingma & Welling, 2014) learns a small latent space and a decoder that maps latent points back to data. It fits this task for two reasons. It is a generative model, so I can sample new spectra from it. And its reconstruction error gives a natural anomaly score: if the VAE only learned healthy spectra, a damaged spectrum should be harder to reconstruct.
 
@@ -61,7 +61,7 @@ I used 1D convolutions because neighbouring frequency bins are related, and the 
 
 **Anomaly score.** For each window I encode it, decode from the latent mean, and use the sum of squared errors as the score. I then compute AUROC for each damaged bearing against the unseen healthy bearings K005 and K006.
 
-## Output Evaluation
+## Output Evaluation and Interpretation
 
 **Generated samples (Figure 3).** I generated 500 spectra by sampling the latent from the prior and decoding.
 
@@ -94,7 +94,7 @@ After seeing the results, I found that a different loudness measure (the mean of
 
 **Latent space (Figure 5).** I projected the latent means onto two principal components. PC 1 is basically loudness. The correlation between each bearing's mean PC 1 and its mean loudness is −0.99. Each bearing forms its own cluster, and there is no single "damaged" region. KI14 and KA15 sit next to the quiet healthy bearings K002, K004 and K005. So detection depends on the reconstruction error and not on where a window lands in the latent space.
 
-## Ethical Considerations
+## Ethical Considerations and Responsible Use
 
 **Synthetic data must stay labelled as synthetic.** My generated spectra look right on average, but they are too smooth and they miss the fine detail of real windows. If someone mixes them into a dataset as if they were real, or uses them to test a fault detector, they can give a wrong picture of how well the detector works. Jordon et al. (2022) point out that synthetic data is only useful for a stated purpose, and its limits need to be documented with it. For this project, the generated spectra are only good as "average healthy" examples, and I say this in the notebook.
 
@@ -104,7 +104,9 @@ After seeing the results, I found that a different loudness measure (the mean of
 
 **Data use.** The dataset has no personal data. It is published under CC BY 4.0, so I credit both the original authors and the Zenodo upload, and I do not commit the raw data to the repository.
 
-## Limitations
+## Limitations and Future Improvements
+
+### Limitations
 
 - **Small number of bearings.** I train on only four healthy bearings and test on two healthy and six damaged ones. The K005 result shows that four bearings do not cover the normal variation between healthy bearings.
 - **One test rig and one operating condition.** All data is from the Paderborn test rig at N15_M07_F10. I do not know how the model behaves at other speeds, loads, or on other machines.
@@ -112,9 +114,17 @@ After seeing the results, I found that a different loudness measure (the mean of
 - **Over-smoothed samples.** The generated spectra are not realistic single windows, only realistic averages.
 - **Weak use of the latent space.** The KL is small and mostly in one dimension, so the latent space does not capture much variety.
 - **Validation set.** My validation data comes from the same bearings as training, so it cannot catch problems with new bearings.
-- **Post-hoc explanation.** The loudness explanation for KI04 was found after seeing the results and is not tested yet. A fair test would fix that measure first and then check it on other damaged Paderborn bearings, such as KA22, KA30, KI17, KI18 and KI21.
-- **One training run and no simple baseline.** I trained with one random seed and did not compare against a simple method, for example a threshold on loudness alone. Both would make the results stronger.
+- **Post-hoc explanation.** The loudness explanation for KI04 was found after seeing the results and is not tested yet.
+- **One training run and no simple baseline.** I trained with one random seed and did not compare against a simple method, for example a threshold on loudness alone.
 - **Window-level evaluation.** AUROC and false-alarm rates are counted per 64 ms window. A real system would decide per bearing or per time period, which can change the numbers.
+
+### Future Improvements
+
+1. **Test the loudness hypothesis on new bearings.** First I will fix the measure (the mean of the log spectrum, `band_power`) and write down which bearings it says will be hard. Then I will check it on damaged bearings the model has never seen, such as KA22, KA30, KI17, KI18 and KI21. This turns the post-hoc explanation into a real test.
+2. **Train on more healthy bearings, and validate on a held-out healthy bearing.** Using one whole healthy bearing for validation, instead of later recordings of the training bearings, would show problems like K005 before the test set. More healthy bearings in training should also cover more of the normal variation and reduce false alarms.
+3. **Add a loudness-threshold baseline and run several seeds.** A simple threshold on loudness alone shows how much the VAE really adds. Several seeds show how much the AUROC and false-alarm numbers change from run to run.
+4. **Make decisions per bearing, not per 64 ms window.** For example, I can average the score over a recording or a time period before comparing it to the threshold. This is closer to how a real monitoring system works, and it should give fewer random false alarms.
+5. **Reduce over-smoothing.** I can let the decoder learn the variance of each frequency bin, and add that noise back when sampling, or try a lower β so the model puts more detail into the latent space. Then I will check again if the spread of generated spectra gets closer to the real spread (0.421).
 
 ## References
 
