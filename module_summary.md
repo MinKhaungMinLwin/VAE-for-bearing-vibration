@@ -23,7 +23,11 @@ All code, figures and outputs are in `generative_model.ipynb`.
 
 **Recordings.** Each bearing has 20 recordings of 4 seconds at the operating condition N15_M07_F10. This means 1500 rpm, 0.7 Nm load torque and 1000 N radial force. I only use this one condition. Each `.mat` file has several channels (motor currents, speed, torque, force, temperature and vibration). I only use the `vibration_1` channel, which is sampled at 64 kHz. In total this is 240 recordings.
 
-**Bearings and split.**
+**Bearings and split.** Table 1 shows which bearings I use and for what.
+
+**Table 1**
+
+*Bearings Used and Their Role in the Split*
 
 | Bearing | Condition | Use |
 |---|---|---|
@@ -34,12 +38,20 @@ All code, figures and outputs are in `generative_model.ipynb`.
 
 The damage in the six damaged bearings is real damage from accelerated lifetime tests, not damage made by hand. I split by bearing, so no test bearing is seen in training. This is important, because each bearing has its own "fingerprint", and a split by window would leak that fingerprint into the test set.
 
-**What I found when looking at the data.** Before building the model, I looked at the raw signals and their spectra (Figure 1 in the notebook). Two things surprised me.
+**What I found when looking at the data.** Before building the model, I looked at the raw signals and their spectra (Figure 1). Two things surprised me.
 
 1. The healthy bearing K001 is spikier than the damaged ones. Its kurtosis is about 10.7, but KI04 is 2.2 and KA04 is 2.6. So spikiness is not a damage signal in this data.
 2. Above about 10–11 kHz the spectrum is a flat noise floor, and its level depends on the bearing. Among the healthy bearings alone, the 15–30 kHz floor changes by about 16 times (K001 −5.40 against K004 −6.60 in log10 power). Inside one bearing it hardly changes (standard deviation 0.01–0.02). Most damaged bearings have a low floor, while K001 and K003 have a high one.
 
 Because of point 2, I decided to **keep only 0–10 kHz**. If I kept the high band, the model could "detect damage" just by learning the floor level, which is a recording effect and not a fault. The resonance peaks (near 1, 3.3, 6, 7.8 and 10 kHz) are all below 10 kHz. The cost is that I lose any fault information above 10 kHz.
+
+**Figure 1**
+
+*Raw Vibration and Power Spectral Density of a Healthy (K001), Outer-Race (KA04) and Inner-Race (KI04) Bearing*
+
+![Figure 1: Raw Vibration and Power Spectral Density of a Healthy (K001), Outer-Race (KA04) and Inner-Race (KI04) Bearing](figures/fig1_samples.png)
+
+*Note.* Left: the first 100 ms of one recording per bearing. Right: Welch power spectral density of the same recordings, log scale. The flat floor above about 11 kHz differs strongly between bearings.
 
 **Pre-processing.** I cut each recording into 64 ms windows (4096 samples), without overlap. For each window I apply a Hann window, take the FFT power, keep 0–10 kHz, and average 5 bins together. This gives 128 frequency bins of 78 Hz each, on a log10 scale. In total there are 14,903 spectra: 3,970 for training, 998 for validation and 9,935 for testing. Then I standardise each frequency bin with the mean and standard deviation of the training set only.
 
@@ -59,6 +71,14 @@ I used 1D convolutions because neighbouring frequency bins are related, and the 
 
 **Training behaviour.** Training was stable (Figure 2). The reconstruction loss fell from about 100 to about 60 in the first 10 epochs, then ended at 56.5 (train) and 57.0 (validation). The two curves stay on top of each other, so there is no overfitting. The KL term was noisy and stayed small, around 5 nats. When I checked it per dimension, one latent dimension carried 2.15 nats and the other seven only 0.24–0.8. So the latent space did not collapse, but the model uses it lightly. One weak point is that my validation set is later recordings of the same four bearings, so it cannot show how the model handles a new bearing.
 
+**Figure 2**
+
+*VAE Training Diagnostics*
+
+![Figure 2: VAE Training Diagnostics](figures/fig2_training.png)
+
+*Note.* Left: reconstruction loss (sum of squared errors per standardised spectrum). Right: KL divergence in nats. Solid lines are training, dashed lines are validation (recordings 17–20 of the training bearings).
+
 **Anomaly score.** For each window I encode it, decode from the latent mean, and use the sum of squared errors as the score. I then compute AUROC for each damaged bearing against the unseen healthy bearings K005 and K006.
 
 ## Output Evaluation and Interpretation
@@ -69,9 +89,29 @@ I used 1D convolutions because neighbouring frequency bins are related, and the 
 - *Failure, over-smoothing:* the generated spectra are too smooth. The average per-bin standard deviation is 0.279 for generated spectra and 0.421 for real ones. Single real windows jump up and down from bin to bin, but generated ones are smooth curves. My explanation is this: the loss is a squared error, so for each latent point the decoder learns to output the average of the spectra that map there. Also, when I generate samples I only plot the decoder output and do not add any noise back, so the bin-to-bin detail is averaged away.
 - *Memorisation check:* I compared each generated sample with 998 training windows and 998 held-out validation windows from the same bearings. If the model had memorised its training data, samples would be closer to the training windows. They are not. The median nearest distance is 6.82 to training and 6.74 to validation, and only 35.0% of samples are closer to training. So I found no sign of memorisation.
 
+**Figure 3**
+
+*Generated Versus Real Healthy Spectra*
+
+![Figure 3: Generated Versus Real Healthy Spectra](figures/fig3_generated.png)
+
+*Note.* Left: mean ± 1 standard deviation per frequency bin for 500 generated spectra and the real training spectra. Right: three generated spectra and one real training window.
+
 Evaluating generative models is not simple, and different metrics can tell different stories (Theis et al., 2016). This is why I did not rely on one number. I compared mean and spread per frequency bin, looked at single samples, and checked memorisation separately.
 
-**Anomaly detection (Figure 4).** Every damaged bearing has a higher median score than both unseen healthy bearings.
+**Anomaly detection (Figure 4 and Table 2).** Every damaged bearing has a higher median score than both unseen healthy bearings.
+
+**Figure 4**
+
+*Reconstruction-Error Anomaly Score by Bearing*
+
+![Figure 4: Reconstruction-Error Anomaly Score by Bearing](figures/fig4_scores.png)
+
+*Note.* Box plots of the per-window reconstruction error, log scale, without outliers. K001–K004 are the training bearings, so their boxes also include windows the model was trained on.
+
+**Table 2**
+
+*Detection Quality (AUROC) of Each Damaged Bearing Against the Unseen Healthy Bearings K005 and K006*
 
 | Bearing | AUROC vs K005/K006 |
 |---|---|
@@ -93,6 +133,14 @@ The main failure is **K005**. It is healthy, but its median score is 80, against
 After seeing the results, I found that a different loudness measure (the mean of the log spectrum, which is closer to what the VAE sees) puts KI04, KA15 and KI14 all inside the healthy range. Those are exactly the three lowest AUROCs. But I chose this measure after seeing the results, so it is a hypothesis to test on new bearings, not a confirmation.
 
 **Latent space (Figure 5).** I projected the latent means onto two principal components. PC 1 is basically loudness. The correlation between each bearing's mean PC 1 and its mean loudness is −0.99. Each bearing forms its own cluster, and there is no single "damaged" region. KI14 and KA15 sit next to the quiet healthy bearings K002, K004 and K005. So detection depends on the reconstruction error and not on where a window lands in the latent space.
+
+**Figure 5**
+
+*Latent Space (PCA of Encoder Means), Coloured by Bearing*
+
+![Figure 5: Latent Space (PCA of Encoder Means), Coloured by Bearing](figures/fig5_latent.png)
+
+*Note.* Each point is one 64 ms window. Healthy bearings are circles and damaged bearings are crosses. The PCA is fitted on the training windows only.
 
 ## Ethical Considerations and Responsible Use
 
